@@ -135,7 +135,7 @@ graph TD;
     end
 
     subgraph Data Shippers;
-        td_agent[td-agent <br> (Log Forwarder)];
+        td_agent["td-agent <br> (Log Forwarder)"];
     end
 
     td_agent -->|Logs on Port 24224| Fluentd;
