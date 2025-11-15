@@ -71,8 +71,8 @@ graph TD;
     end
 
     subgraph Data Shippers;
-        Filebeat[Filebeat <br> (Container Logs)];
-        Metricbeat[Metricbeat <br> (Docker Metrics)];
+        Filebeat["Filebeat <br> (Container Logs)"];
+        Metricbeat["Metricbeat <br> (Docker Metrics)"];
     end
 
     Filebeat -->|Logs on Port 5044| Logstash;
