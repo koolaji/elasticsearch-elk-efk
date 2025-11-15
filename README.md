@@ -31,7 +31,7 @@ sudo sysctl -w vm.max_map_count=262144
 Both stacks rely on an `.env` file (located in their respective directories, e.g., `elk/.env`) to configure sensitive information and stack versions. A typical `.env` file might look like this:
 
 ```
-STACK_VERSION=8.x.x
+STACK_VERSION=9.2.0
 ELASTIC_PASSWORD=your_elastic_password
 KIBANA_PASSWORD=your_kibana_password
 CLUSTER_NAME=docker-cluster
@@ -107,9 +107,9 @@ The EFK stack is located in the `efk` directory and includes the following servi
     cd efk
     ```
 2.  Create and configure your `.env` file (refer to the Environment Variables section).
-3.  Run the `start.sh` script (if present, otherwise use `docker-compose up -d`) to set up system configurations, generate certificates, and start the services:
+3.  Run the `start.sh` script to set up system configurations, generate certificates, and start the services:
     ```bash
-    docker-compose up -d
+    bash start.sh
     ```
 4.  Access Kibana: Similar to the ELK stack, access Kibana at `https://localhost:5601` (or your configured `KIBANA_PORT`) and log in with the `elastic` user and `ELASTIC_PASSWORD`.
 
