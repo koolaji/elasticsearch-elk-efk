@@ -1,0 +1,50 @@
+{
+  "index_patterns": ["fluentd-logs-*"],
+  "template": {
+    "settings": {
+      "index": {
+        "number_of_shards": 1,
+        "number_of_replicas": 0,
+        "refresh_interval": "10s"
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "message": {
+          "type": "text",
+          "analyzer": "standard"
+        },
+        "level": {
+          "type": "keyword"
+        },
+        "source": {
+          "type": "keyword"
+        },
+        "hostname": {
+          "type": "keyword"
+        },
+        "container_name": {
+          "type": "keyword"
+        },
+        "container_id": {
+          "type": "keyword"
+        },
+        "image": {
+          "type": "keyword"
+        },
+        "log": {
+          "type": "text"
+        }
+      }
+    }
+  },
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "description": "Template for Fluentd logs in Elasticsearch 8.x"
+  }
+}
+

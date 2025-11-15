@@ -1,0 +1,5 @@
+# Ignore the tar file
+en-elk.tar
+
+# Ignore the license file
+license.json
