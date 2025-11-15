@@ -5,7 +5,7 @@ networks:
 
 services:
   setup:
-    image: docker.elastic.co/elasticsearch/elasticsearch:${STACK_VERSION}-l
+    image: registry.docker.ir/elasticsearch:${STACK_VERSION}-l
     volumes:
       - ./data/certs:/usr/share/elasticsearch/config/certs
     user: "0"
@@ -214,7 +214,7 @@ services:
       retries: 120
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:${STACK_VERSION}
+    image: registry.docker.ir/kibana:${STACK_VERSION}
     labels:
       co.elastic.logs/module: kibana
     volumes:
@@ -241,27 +241,26 @@ services:
       interval: 10s
       timeout: 10s
       retries: 120
-
   logstash:
-    image: docker.elastic.co/logstash/logstash:${STACK_VERSION}
-    ports:
-      - "5044:5044"
-      - "9600:9600"
-    volumes:
-      - ./data/certs:/usr/share/logstash/config/certs
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
-      - ./logstash/pipeline:/usr/share/logstash/pipeline
-    environment:
-      - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
-      - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
-    depends_on:
-      - es01
+      image: elastic/logstash:${STACK_VERSION}
+      ports:
+        - "5044:5044"
+        - "9600:9600"
+      volumes:
+        - ./data/ca-logstash/ca:/usr/share/logstash/certs:ro
+        - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+        - ./logstash/pipeline:/usr/share/logstash/pipeline
+      environment:
+        - "LS_JAVA_OPTS=-Xms1g -Xmx1g"
+        - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
+      depends_on:
+        - es01
 
   filebeat:
-    image: docker.elastic.co/beats/filebeat:${STACK_VERSION}
+    image: elastic/filebeat:${STACK_VERSION}
     user: root
     volumes:
-      - ./data/certs:/usr/share/filebeat/certs
+      - ./data/certs:/usr/share/filebeat/certs/
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -271,7 +270,7 @@ services:
       - logstash
 
   metricbeat:
-    image: docker.elastic.co/beats/metricbeat:${STACK_VERSION}
+    image: elastic/metricbeat:${STACK_VERSION}
     user: root
     volumes:
       - ./data/certs:/usr/share/metricbeat/certs
@@ -284,4 +283,5 @@ services:
       - "ELASTIC_PASSWORD=${ELASTIC_PASSWORD}"
     depends_on:
       - es01
+
 

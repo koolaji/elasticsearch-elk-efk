@@ -1,4 +1,37 @@
+input {
+  beats {
+    port => 5044
+    ssl_enabled => false
+  }
+}
+
+output {
+  elasticsearch {
+    hosts => ["https://es01:9200"]
+    user => "elastic"
+    password => "${ELASTIC_PASSWORD}"
+    ssl_certificate_authorities => ["/usr/share/logstash/certs/ca.crt"]
+    index => "filebeat-%{+YYYY.MM.dd}"
+  }
+}
+root@db:/opt/elasticsearch/elk# cat metricbeat/metricbeat.yml
+setup.template.settings:
+  index.number_of_shards: 1
+  index.codec: best_compression
+setup.template.name: "metricbeat"
+setup.template.pattern: "metricbeat-*"
+setup.ilm.enabled: auto
+setup.ilm.rollover_alias: "metricbeat"
+setup.ilm.pattern: "{now/d}-000001"
+setup.kibana:
+  host: "http://kibana:5601"
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+
+setup.dashboards.enabled: true
+
 metricbeat.modules:
+# Docker monitoring
 - module: docker
   metricsets:
     - "container"
@@ -12,11 +45,84 @@ metricbeat.modules:
   period: 10s
   enabled: true
 
+# Elasticsearch monitoring
+- module: elasticsearch
+  metricsets:
+    - "node"
+    - "node_stats"
+    - "cluster_stats"
+    - "index"
+  period: 10s
+  hosts: ["https://es01:9200"]
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+  ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+  xpack.enabled: true
+
+# Kibana monitoring
+- module: kibana
+  metricsets:
+    - "status"
+    - "stats"
+  period: 10s
+  hosts: ["http://kibana:5601"]
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+  xpack.enabled: true
+
+# Logstash monitoring
+- module: logstash
+  metricsets:
+    - "node"
+    - "node_stats"
+  period: 10s
+  hosts: ["http://logstash:9600"]
+  xpack.enabled: true
+
+# Filebeat monitoring
+- module: beat
+  metricsets:
+    - "stats"
+    - "state"
+  period: 10s
+  hosts: ["http://filebeat:5066"]
+  xpack.enabled: true
+  index_prefix: "filebeat"  # Add this to help with association
+
+# System monitoring
+- module: system
+  period: 10s
+  metricsets:
+    - "cpu"
+    - "load"
+    - "memory"
+    - "network"
+    - "process"
+    - "process_summary"
+    - "filesystem"
+    - "fsstat"
+  processes: ['.*']
+  process.include_top_n:
+    by_cpu: 5
+    by_memory: 5
+  xpack.enabled: false  # Disable self-monitoring
+
 output.elasticsearch:
   hosts: ["https://es01:9200"]
   username: "elastic"
   password: "${ELASTIC_PASSWORD}"
   ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
+  pipeline: "metrics_pipeline"
+
+# Monitoring with explicit cluster UUID
+monitoring:
+  enabled: true
+  cluster_uuid: "YyeMIGqzS6qUqweys3Psrg"
+  elasticsearch:
+    hosts: ["https://es01:9200"]
+    username: "elastic"
+    password: "${ELASTIC_PASSWORD}"
+    ssl.certificate_authorities: ["/usr/share/metricbeat/certs/ca/ca.crt"]
 
 logging.level: info
 logging.to_files: true
@@ -25,3 +131,4 @@ logging.files:
   name: metricbeat
   keepfiles: 7
   permissions: 0644
+

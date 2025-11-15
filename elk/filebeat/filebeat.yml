@@ -1,14 +1,47 @@
 filebeat.inputs:
-- type: container
+- type: filestream
+  id: container-logs
   paths:
     - /var/lib/docker/containers/*/*.log
+  parsers:
+    - container:
+        stream: all
   processors:
     - add_docker_metadata:
         host: "unix:///var/run/docker.sock"
 
-output.logstash:
-  hosts: ["logstash:5044"]
+output.elasticsearch:
+  hosts: ["https://es01:9200"]
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
   ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
+  pipeline: "filebeat_pipeline"
+
+# Cluster association settings
+setup.template.enabled: true
+setup.template.name: "filebeat"
+setup.template.pattern: "filebeat-*"
+setup.ilm.enabled: auto
+setup.ilm.rollover_alias: "filebeat"
+setup.ilm.pattern: "{now/d}-000001"
+setup.kibana:
+  host: "http://kibana:5601"
+  username: "elastic"
+  password: "${ELASTIC_PASSWORD}"
+
+# Monitoring with explicit cluster UUID
+monitoring:
+  enabled: true
+  cluster_uuid: "YyeMIGqzS6qUqweys3Psrg"
+  elasticsearch:
+    hosts: ["https://es01:9200"]
+    username: "elastic"
+    password: "${ELASTIC_PASSWORD}"
+    ssl.certificate_authorities: ["/usr/share/filebeat/certs/ca/ca.crt"]
+
+http.enabled: true
+http.host: "0.0.0.0"
+http.port: 5066
 
 logging.level: info
 logging.to_files: true
@@ -17,3 +50,4 @@ logging.files:
   name: filebeat
   keepfiles: 7
   permissions: 0644
+
