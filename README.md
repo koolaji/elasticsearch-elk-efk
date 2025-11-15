@@ -59,6 +59,34 @@ The ELK stack is located in the `elk` directory and includes the following servi
 
 ### Data Flow (ELK)
 
+```mermaid
+graph TD;
+    subgraph User Interface;
+        Kibana;
+    end
+
+    subgraph Data Storage & Processing;
+        Elasticsearch_Cluster[Elasticsearch Cluster];
+        Logstash;
+    end
+
+    subgraph Data Shippers;
+        Filebeat[Filebeat <br> (Container Logs)];
+        Metricbeat[Metricbeat <br> (Docker Metrics)];
+    end
+
+    Filebeat -->|Logs on Port 5044| Logstash;
+    Logstash -->|Processed Logs| Elasticsearch_Cluster;
+    Metricbeat -->|Metrics| Elasticsearch_Cluster;
+    Kibana <-->|Queries & Visualizations| Elasticsearch_Cluster;
+
+    style Kibana fill:#F9D000,stroke:#333,stroke-width:2px;
+    style Elasticsearch_Cluster fill:#00BFB3,stroke:#333,stroke-width:2px;
+    style Logstash fill:#F2731D,stroke:#333,stroke-width:2px;
+    style Filebeat fill:#00A5E3,stroke:#333,stroke-width:2px;
+    style Metricbeat fill:#00A5E3,stroke:#333,stroke-width:2px;
+```
+
 1.  **Filebeat**: Configured via `filebeat/filebeat.yml` to monitor Docker container logs (`/var/lib/docker/containers/*/*.log`). It enriches logs with Docker metadata and forwards them to Logstash on port `5044`.
 2.  **Metricbeat**: Configured via `metricbeat/metricbeat.yml` to collect Docker container metrics (CPU, memory, disk I/O, network, etc.) every 10 seconds. It sends these metrics directly to Elasticsearch.
 3.  **Logstash**: Listens on port `5044` for Beats input (from Filebeat) as defined in `logstash/pipeline/02-beats-input.conf`. It then outputs the processed logs to Elasticsearch, creating daily indices like `filebeat-YYYY.MM.dd`.
@@ -94,6 +122,31 @@ The EFK stack is located in the `efk` directory and includes the following servi
 *   **td-agent**: A stable distribution of Fluentd (`fluent/fluentd:v1.14-1` image), acting as a log forwarder to the main Fluentd service. Configured via `efk/td-agent.conf`.
 
 ### Data Flow (EFK)
+
+```mermaid
+graph TD;
+    subgraph User Interface;
+        Kibana;
+    end
+
+    subgraph Data Storage & Processing;
+        Elasticsearch_Cluster[Elasticsearch Cluster];
+        Fluentd;
+    end
+
+    subgraph Data Shippers;
+        td_agent[td-agent <br> (Log Forwarder)];
+    end
+
+    td_agent -->|Logs on Port 24224| Fluentd;
+    Fluentd -->|Processed Logs| Elasticsearch_Cluster;
+    Kibana <-->|Queries & Visualizations| Elasticsearch_Cluster;
+
+    style Kibana fill:#F9D000,stroke:#333,stroke-width:2px;
+    style Elasticsearch_Cluster fill:#00BFB3,stroke:#333,stroke-width:2px;
+    style Fluentd fill:#4A90E2,stroke:#333,stroke-width:2px;
+    style td_agent fill:#B8E986,stroke:#333,stroke-width:2px;
+```
 
 1.  **td-agent**: Listens for incoming logs on port `24225` (mapped from container port `24224`). It then forwards these logs to the `fluentd` service within the Docker network.
 2.  **Fluentd**: Listens for forwarded logs on port `24224` and can also receive logs via HTTP on port `9880`. It processes these logs and sends them to Elasticsearch, where they are indexed under the `fluentd-logs` index pattern.
