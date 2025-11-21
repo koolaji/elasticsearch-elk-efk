@@ -1,0 +1,170 @@
+version: '3.8'
+
+services:
+  postgres-server:
+    image: postgres:16-bookworm
+    restart: always
+    environment:
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix_pwd
+      POSTGRES_DB: zabbix
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - zabbix-net
+
+  zabbix-server:
+    image: zabbix/zabbix-server-pgsql:ubuntu-7.0-latest
+    restart: always
+    #security_opt:
+    #  - apparmor:unconfined
+    environment:
+      DB_SERVER_HOST: postgres-server
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix_pwd
+      POSTGRES_DB: zabbix
+      ZBX_HISTORYSTORAGETYPES: log,text
+      ZBX_DEBUGLEVEL: 1
+      ZBX_HOUSEKEEPINGFREQUENCY: 1
+      ZBX_MAXHOUSEKEEPERDELETE: 5000
+      ZBX_PROXYCONFIGFREQUENCY: 3600
+      # Enable API for Grafana integration
+      ZBX_ENABLE_SNMP_TRAPS: "true"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      - ./zabbix_data:/var/lib/zabbix
+    ports:
+      - "10051:10051"
+    depends_on:
+      - postgres-server
+    networks:
+      - zabbix-net
+
+  zabbix-web:
+    image: zabbix/zabbix-web-nginx-pgsql:ubuntu-7.0-latest
+    restart: always
+    #security_opt:
+    #  - apparmor:unconfined
+    environment:
+      ZBX_SERVER_HOST: zabbix-server
+      DB_SERVER_HOST: postgres-server
+      POSTGRES_USER: zabbix
+      POSTGRES_PASSWORD: zabbix_pwd
+      POSTGRES_DB: zabbix
+      PHP_TZ: "America/New_York"
+      # Enable API access for Grafana
+      ZBX_SERVER_NAME: "Zabbix Docker"
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    depends_on:
+      - postgres-server
+      - zabbix-server
+    networks:
+      - zabbix-net
+
+  zabbix-agent2:
+    image: zabbix/zabbix-agent2:ubuntu-7.0-latest
+    restart: always
+    #security_opt:
+    #  - apparmor:unconfined
+    #  - seccomp:unconfined
+    environment:
+      ZBX_HOSTNAME: "Zabbix server"
+      ZBX_SERVER_HOST: zabbix-server
+      ZBX_SERVER_PORT: 10051
+      ZBX_PASSIVE_ALLOW: true
+      ZBX_ACTIVE_ALLOW: true
+      ZBX_METADATA: "Linux Docker"
+    ports:
+      - "10050:10050"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+      #- /proc:/proc:ro
+      - /sys:/sys:ro
+      - /dev:/dev:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    privileged: true
+    pid: "host"
+    depends_on:
+      - zabbix-server
+    networks:
+      - zabbix-net
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    restart: always
+    #security_opt:
+    #  - apparmor:unconfined
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: grafana_admin
+      GF_INSTALL_PLUGINS: alexanderzobnin-zabbix-app
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: alexanderzobnin-zabbix-datasource
+      GF_SERVER_ROOT_URL: http://localhost:3000
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana_data:/var/lib/grafana
+      - ./grafana_logs:/var/log/grafana
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - zabbix-server
+    networks:
+      - zabbix-net
+
+  # Optional: Prometheus for additional metrics
+  prometheus:
+    image: prom/prometheus:latest
+    restart: always
+    #security_opt:
+    #  - apparmor:unconfined
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - zabbix-net
+
+  # Optional: Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    restart: always
+    #security_opt:
+    #  - apparmor:unconfined
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - zabbix-net
+
+volumes:
+  postgres_data:
+  zabbix_data:
+  grafana_data:
+  grafana_logs:
+  grafana_plugins:
+  prometheus_data:
+
+networks:
+  zabbix-net:
+    driver: bridge
